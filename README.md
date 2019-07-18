@@ -5,11 +5,6 @@
 # Please add comments to this file before uploading
 ################################################################################
 
-Authors: 
-Amber Camilleri
-Christopher Kreke
-Yuke Liu 
-Rachel Meade
-Jayant Raisinghani
+Authors: Amber Camilleri, Christopher Kreke, Yuke Liu, Rachel Meade, Jayant Raisinghani
 
 
