@@ -14,6 +14,7 @@ Changes Include:
 - addition of "host_is_superhost","number_of_reviews","and "number_of_reviews_ltm" to variables
 - fixed formatting of "price", "security_deposit", and "cleaning_fee" to be numeric, without commas or "$"
 - added column at end that has ((price x4) + cleaning_fee)
+- removed any lisings that have >14 day minimum_nights (the meeting mins say >13, but I don't think 13 v 14 makes much difference)
 - I have NOT changed columns that are basically Y/N to be bianary, like "room_type", for example. 
 - Also, it may be useful to note that in both this file and the original I uploaded I set the working directory to one of my local folders. You'll obviously need to change this to the location of where you have the csv data file saved. 
 
