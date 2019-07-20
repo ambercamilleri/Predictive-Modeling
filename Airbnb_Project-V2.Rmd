@@ -1,0 +1,72 @@
+---
+# AirBnB Price Relationships & Optimization
+### Group Members: Christopher Kreke, Amber Camilleri, Jayant Raisinghani, Rachel Meade, Yuke Liu
+
+We are interested in examining prices for Airbnb listings in the Austin area to explore variables that are informative in predicting price per night. Our goal is to create a useful model of these relationships that can help Airbnb hosts maximize revenue through price optimization.
+```{r}
+rm(list=ls())
+setwd("C:/Users/rmead/Documents/UT MSBA/Predictive Modeling/R Files")
+listings_raw = read.csv("Airbnb_new.csv") #open the .csv file
+fix(listings_raw) #examine the data in window
+```
+
+
+Now that we know what the dataset looks like, we can see it contains over 100 columns, some of which will not be useful for our purpose. We have chosen several variables we are interested in exploring further, so we will create a new dataset that is limited to just those variables. 
+
+
+```{r}
+
+library(dplyr)
+
+listings_short = select(listings_raw, id, name, neighbourhood, zipcode, latitude, longitude, property_type, room_type, accommodates, price, security_deposit, cleaning_fee, guests_included, extra_people, minimum_nights, review_scores_rating, review_scores_accuracy, review_scores_cleanliness, review_scores_checkin, review_scores_communication, review_scores_location, review_scores_value, cancellation_policy, host_is_superhost, number_of_reviews, number_of_reviews_ltm)
+
+fix(listings_short) 
+
+```
+
+Typical Airbnb listings are vacation-type rentals that are rented out for a time period between one day and two weeks. However, we can see that some Airbnb hosts are have a minimum nights requirement of much longer than this. For example:
+
+```{r}
+print(listings_short[1,])
+```
+
+These hosts may be using Airbnb to help them find a long-term tenant at their listing location. At this time, we will focus only on the typical Airbnb model and remove listings which have a minimum nights requirement of more than 14 days. 
+
+```{r}
+
+clean_listings = subset(listings_short, minimum_nights <= 14)
+
+```
+
+The pricing data will be easier to use if we reove the '$' from the values. Also, there are listings that do not require a security deposit or a cleaning fee. These should be changed to zeros, rather than null values. 
+
+```{r}
+
+#Remove '$' from 'price', 'security_deposit', and 'cleaning_fee
+
+clean_listings$price = substring(clean_listings$price,2)
+  
+clean_listings$security_deposit = substring(clean_listings$security_deposit,2)
+
+clean_listings$cleaning_fee = substring(clean_listings$cleaning_fee,2)
+
+#Remove commas from values over 999.99
+
+clean_listings$price = lapply(clean_listings$price, function(x) gsub(",","", x))
+
+clean_listings$cleaning_fee = lapply(clean_listings$cleaning_fee, function(x) gsub(",","", x))
+
+clean_listings$security_deposit = lapply(clean_listings$security_deposit, function(x) gsub(",","", x))
+
+                                            
+#Replace null pricing values with zeros.
+
+clean_listings$cleaning_fee[clean_listings$cleaning_fee==""]<-"0.00"
+
+clean_listings$security_deposit[clean_listings$security_deposit==""]<-"0.00"
+
+clean_listings$four_nights_price = (as.numeric(clean_listings$price) * 4 + as.numeric(clean_listings$cleaning_fee))
+
+fix(clean_listings)
+
+```
