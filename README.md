@@ -23,3 +23,11 @@ As you guys continue working on this, feel free to clean up and make changes to 
 
 ### V3 Uploaded
 Script to get fully cleaned data
+
+### V4 Uploaded
+Changes Include:
+- No longer calulating 'four_nights_price'
+- Dropped entries with 'price' > 500
+- Formatted 'price' column to remove decimal places
+- Drop 'id' and 'name' column
+- Write 'clean_listings_price500' to csv
