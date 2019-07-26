@@ -1,0 +1,186 @@
+# AirBnB Price Relationships & Optimization
+### Group Members: Christopher Kreke, Amber Camilleri, Jayant Raisinghani, Rachel Meade, Yuke Liu
+
+We are interested in examining prices for Airbnb listings in the Austin area to explore variables that are informative in predicting price per night. Our goal is to create a useful model of these relationships that can help Airbnb hosts maximize revenue through price optimization.
+```{r}
+rm(list=ls())
+setwd("~/R/Predictive Modeling AirBnB Project")
+listings_raw = read.csv("listings.csv") #open the .csv file
+head(listings_raw) #examine the data in window
+```
+
+
+Now that we know what the dataset looks like, we can see it contains over 100 columns, some of which will not be useful for our purpose. We have chosen several variables we are interested in exploring further, so we will create a new dataset that is limited to just those variables. 
+
+
+```{r}
+library(dplyr)
+listings_short = select(listings_raw, id, name, latitude, longitude, room_type, price, guests_included, minimum_nights, review_scores_rating, cancellation_policy, host_is_superhost, number_of_reviews, number_of_reviews_ltm, bathrooms, bedrooms, beds, bed_type)
+
+head(listings_short) 
+```
+
+Typical Airbnb listings are vacation-type rentals that are rented out for a time period between one day and two weeks. However, we can see that some Airbnb hosts are have a minimum nights requirement of much longer than this. For example:
+
+```{r}
+print(listings_short[1,])
+```
+
+These hosts may be using Airbnb to help them find a long-term tenant at their listing location. At this time, we will focus only on the typical Airbnb model and remove listings which have a minimum nights requirement of more than 14 days. 
+
+```{r}
+clean_listings = subset(listings_short, minimum_nights <= 14) #removes 766 entries
+```
+
+
+Cleaning the Pricing data
+```{r}
+library(tidyr)
+
+#Remove '$' from 'price'
+clean_listings$price = substring(clean_listings$price,2)
+
+#Remove Prices > 500 as they are out of our scope
+clean_listings$price = as.numeric(clean_listings$price)
+clean_listings = subset(clean_listings, price <= 500)
+
+#Remove decimal values (bc we are only keeping values <=500 we can keep 3 sig digits)
+format(clean_listings$price, digits=3)
+
+#Remove commas from values over 999.99
+#clean_listings$price = lapply(clean_listings$price, function(x) gsub(",","", x))
+
+#Replace null pricing values with zeros.
+#sum(is.na(clean_listings$price))
+#sum(clean_listings$price == "")
+#clean_listings$price = as.numeric(clean_listings$price)
+#clean_listings$price <- clean_listings$price %>% replace_na(0)
+clean_listings = subset(clean_listings, !(is.na(price)))
+
+#Check that no more NAs or ""
+#sum(is.na(clean_listings$price))
+#sum(clean_listings$price == "")
+
+#Remove entries whose 'rice' is > 500 as they are out of our scope
+#clean_listings$price = as.numeric(clean_listings$price)
+#clean_listings = subset(clean_listings, price <= 500)
+```
+
+```{r}
+head(clean_listings)
+```
+
+
+```{r Checking all variables and cleaning data}
+#LATITUDE
+sum(is.na(clean_listings$latitude))
+sum(clean_listings$latitude == "")
+
+
+#LONGITUDE
+sum(is.na(clean_listings$longitude))
+sum(clean_listings$longitude == "")
+
+
+#ROOM TYPE
+sum(is.na(clean_listings$room_type))
+sum(clean_listings$room_type == "")
+
+
+#GUESTS INCLUDED
+sum(is.na(clean_listings$guests_included))
+sum(clean_listings$guests_included == "")
+
+
+#MINIMUM NIGHTS
+sum(is.na(clean_listings$minimum_nights))
+sum(clean_listings$minimum_nights == "")
+
+
+#CANCELLATION POLICY
+sum(is.na(clean_listings$cancellation_policy))
+sum(clean_listings$cancellation_policy == "")
+
+
+#NUMBER OF REVIEWS
+sum(is.na(clean_listings$number_of_reviews))
+sum(clean_listings$number_of_reviews == "")
+
+
+#NUMBER OF REVIEWS LTM
+sum(is.na(clean_listings$number_of_reviews_ltm))
+sum(clean_listings$number_of_reviews_ltm == "")
+
+
+#BED TYPE
+sum(is.na(clean_listings$bed_type))
+sum(clean_listings$bed_type == "")
+
+##################################################################################
+# VARIABLES THAT NEED TO BE CLEANED ##############################################
+##################################################################################
+
+#REVIEW SCORES RATING
+sum(is.na(clean_listings$review_scores_rating)) #2440
+sum(clean_listings$review_scores_rating == "")
+#Create dummy variable to detect whether a listing has a review or not - based on number_of_reviews
+clean_listings$has_reviews = !(is.na(clean_listings$review_scores_rating))
+sum(clean_listings$has_reviews == FALSE) #should be 2440
+#Impute mean review score to missing values
+list_with_review_scores = subset(clean_listings, !(is.na(review_scores_rating)))
+clean_listings$review_scores_rating = clean_listings$review_scores_rating %>% replace_na(mean(list_with_review_scores$review_scores_rating))
+sum(is.na(clean_listings$review_scores_rating))
+
+
+#HOST IS SUPERHOST
+sum(is.na(clean_listings$host_is_superhost))
+sum(clean_listings$host_is_superhost == "") #4
+clean_listings = subset(clean_listings, !(host_is_superhost == ""))
+sum(clean_listings$host_is_superhost == "")
+
+
+
+#BATHROOMS
+sum(is.na(clean_listings$bathrooms)) #20
+sum(clean_listings$bathrooms == "")
+clean_listings = subset(clean_listings, !(is.na(bathrooms)))
+sum(is.na(clean_listings$bathrooms))
+
+
+
+#BEDROOMS
+sum(is.na(clean_listings$bedrooms)) #4
+sum(clean_listings$bedrooms == "")
+clean_listings = subset(clean_listings, !(is.na(bedrooms)))
+sum(is.na(clean_listings$bedrooms))
+
+
+
+#BEDS
+sum(is.na(clean_listings$beds)) #4
+sum(clean_listings$beds == "")
+clean_listings = subset(clean_listings, !(is.na(beds)))
+sum(is.na(clean_listings$beds))
+
+#cleaning process removed a total of 32 rows for missing values
+#######################################################################
+#FINAL CHECK THAT DATA IS CLEAN
+sum(is.na(clean_listings))
+sum(clean_listings == "")
+```
+
+
+```{r}
+#Drop 'id' column
+clean_listings$id <-NULL
+
+#Drop 'name' column
+clean_listings$name <-NULL
+
+head(clean_listings)
+```
+
+Now we can Write CSV
+```{r}
+write.csv(clean_listings, file = "clean_listings_price500.csv", row.names=FALSE)
+```
