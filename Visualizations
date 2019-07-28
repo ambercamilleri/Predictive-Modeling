@@ -1,1 +1,59 @@
+Airbnb Project 
+Variable Visualization
 
+```{r}
+rm(list=ls())
+setwd("C:/Users/rmead/Documents/UT MSBA/Predictive Modeling/R Files/Predictive Modeling Project")
+listings = read.csv("clean_listings_price500.csv") #open the .csv file
+head(clean_listings) #examine the data in window
+
+attach(listings)
+
+#install.packages('scatterplot3d')
+#install.packages('RColorBrewer')
+
+##################################
+### 3D Plot of Lat, Long, Price###
+##################################
+
+library(RColorBrewer)
+library(scatterplot3d)
+
+sample_listings = listings[sample(nrow(listings), 4000), ]
+#sample(price, 5000, replace=FALSE)
+plotvar = sample_listings$price
+nclr = 8
+plotclr = brewer.pal(nclr, 'PuBu')
+colornum = cut(rank(plotvar), nclr, labels=FALSE)
+colcode = plotclr[colornum]
+
+scatterplot3d(sample_listings$longitude, sample_listings$latitude, plotvar, xlab='Longitude', ylab='Latitude', zlab='Price', type ="b", angle=45, color=colcode, pch=20, cex.symbols=2, col.axis='black', col.grid='gray')
+
+###################################
+### 2D Heatmap Lat, Long, Price ###
+###################################
+
+colors = rev(heat.colors(101))
+zcolor = colors[(price-min(price))/diff(range(price))*100+1]
+plot(longitude, latitude, col=zcolor, main='Heatmap of Price', xlab= 'Longitude', ylab='Latitude')
+
+#####################################
+### 2D Heatmap Lat, Long, Ratings ###
+#####################################
+
+colors = rev(heat.colors(101))
+zcolor = colors[(review_scores_rating-min(review_scores_rating))/diff(range(review_scores_rating))*100+1]
+plot(longitude, latitude, col=zcolor, main = 'Heatmap of Review Scores Rating', xlab= 'Longitude', ylab='Latitude')
+
+#####################################
+###   ###
+#####################################
+
+library(ggplot2)
+
+ggplot(data=NULL, aes(x=longitude, y=latitude), type='p')+geom_point(aes(color=price))
+
+ggplot(data=NULL, aes(x=longitude, y=latitude), type='p')+geom_point(aes(color=review_scores_rating))
+
+ggplot(data=NULL, aes(x=longitude, y=latitude), type='p')+geom_point(aes(color=bathrooms))
+```
