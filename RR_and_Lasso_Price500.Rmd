@@ -1,0 +1,113 @@
+AirBnB Project
+Ridge Regression and Lasso Model
+
+```{r}
+rm(list=ls())
+setwd("~/R/Predictive Modeling AirBnB Project")
+clean_listings = read.csv("clean_listings_price500.csv") #open the .csv file
+head(clean_listings) #examine the data in window
+```
+
+
+
+Validation Set
+---------------
+```{r}
+x=model.matrix(price~.,clean_listings)[,-1]
+y=clean_listings$price
+
+set.seed(1)
+train=sample(1:nrow(x), nrow(x)/2)
+test=(-train)
+y.test=y[test]
+```
+
+
+
+Ridge Regression
+-----------------
+We will use the package `glmnet`, which does not use the model formula language, so we will set up on an `x` and `y`.
+```{r}
+library(glmnet)
+```
+
+Fit a ridge-regression model. This is achieved by calling `glmnet` with `alpha=0` 
+```{r}
+fit.ridge=glmnet(x,y,alpha=0)
+plot(fit.ridge, xvar="lambda", label=TRUE)
+```
+
+Now we will use the `cv.glmnet` function to do the cross-validation
+```{r}
+cv.ridge=cv.glmnet(x,y,alpha=0)
+plot(cv.ridge)
+```
+
+
+
+Lasso
+------
+Now we fit a lasso model; for this we use the default `alpha=1`
+```{r}
+fit.lasso=glmnet(x,y)
+plot(fit.lasso, xvar="lambda", label=TRUE)
+```
+
+Percentage of deviance or R^2 explained (may be an indication that the end of the plot is overfit)
+```{r}
+fit.lasso=glmnet(x,y)
+plot(fit.lasso, xvar="dev", label=TRUE)
+```
+
+Cross Validation for Lasso
+```{r}
+cv.lasso = cv.glmnet(x, y)
+plot(cv.lasso)
+```
+
+Extract the coefficient from the CV object, it'll pick the coefficient vector corresponding to the best model
+```{r}
+coef(cv.lasso)
+```
+
+
+Suppose we want to use our earlier train/validation division to select the `lambda` for the lasso.
+```{r}
+lasso.tr=glmnet(x[train,],y[train])
+lasso.tr
+#Summary of the glmnet fit -> For each of the models in the path, it gives: 
+# (1) The degrees of freedom, which is the number of non-zero coefficients
+# (2) The percentage deviance explained, which is like r^2 but for generalized linear models
+# (3) The lambda value that corresponds to that fit
+```
+
+So now we can make predictions on our left r data. That's indexes x by minus train.
+If we take the dim of this prediction set we can see there are 3695 observations of the validation set 
+and bc we have 70 values of lambda there will be 70 different columns in this prediction matrix
+```{r}
+pred=predict(lasso.tr, x[-train,])
+dim(pred) 
+```
+
+Then we can look at our validation curve by by plotting RMSE as a function of Lambda
+To find the RMSE:
+(1) Compute our sum of squared errors
+(2) Use apply to compute the means in each column of the squared errors
+(3) Take the square root
+```{r}
+rmse=sqrt(apply((y[-train]-pred)^2,2,mean))
+plot(log(lasso.tr$lambda),rmse,type="b", xlab="Log(lambda)")
+```
+
+Next, we can extract the base lambda.
+We do this by indexing lambda in ascending order of rmse and picking out the index of the first (smallest) value.
+```{r}
+lam.best=lasso.tr$lambda[order(rmse)[1]]
+lam.best
+```
+
+Now we can look at the coefficients corresponding to lam.best
+That'll give us a subset of the coefficients (our coefficient vector)
+```{r}
+coef(lasso.tr, s=lam.best)
+```
