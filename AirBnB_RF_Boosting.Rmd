@@ -1,0 +1,624 @@
+---
+title: "AirBnB RF"
+author: "Jayant Raisinghani"
+date: "7/25/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# AirBnB Price Relationships & Optimization
+### Group Members: Christopher Kreke, Amber Camilleri, Jayant Raisinghani, Rachel Meade, Yuke Liu
+
+We are interested in examining prices for Airbnb listings in the Austin area to explore variables that are informative in predicting price per night. Our goal is to create a useful model of these relationships that can help Airbnb hosts maximize revenue through price optimization.
+```{r}
+rm(list=ls())
+#setwd("C:/Users/rmead/Documents/UT MSBA/Predictive Modeling/R Files")
+listings_raw = read.csv("C:/Users/raisi/Documents/listings.csv")
+#listings_raw = read.csv("listings.csv") #open the .csv file
+head(listings_raw) #examine the data in window
+```
+
+
+Now that we know what the dataset looks like, we can see it contains over 100 columns, some of which will not be useful for our purpose. We have chosen several variables we are interested in exploring further, so we will create a new dataset that is limited to just those variables. 
+
+
+```{r}
+library(dplyr)
+# listings_short = select(listings_raw, c('id', 'name', 'latitude', 'longitude', 'room_type', 'price', 'cleaning_fee', 'guests_included', 'minimum_nights', 'review_scores_rating', 'cancellation_policy', 'host_is_superhost', 'number_of_reviews', 'number_of_reviews_ltm', 'bathrooms', 'bedrooms', 'beds', 'bed_type'))
+
+
+
+listings_short = listings_raw[, c( 'id','name', 'price','minimum_nights','minimum_minimum_nights', 'maximum_minimum_nights', 'minimum_maximum_nights', 'minimum_nights_avg_ntm', 'number_of_reviews', 'number_of_reviews_ltm', 'review_scores_rating', 'review_scores_accuracy', 'review_scores_cleanliness', 'review_scores_checkin', 'review_scores_communication','reviews_per_month', 'review_scores_value', 'host_is_superhost', 'latitude', 'longitude','bedrooms','bathrooms','beds','cleaning_fee','guests_included', 'reviews_per_month')]
+
+head(listings_short) 
+```
+
+Typical Airbnb listings are vacation-type rentals that are rented out for a time period between one day and two weeks. However, we can see that some Airbnb hosts are have a minimum nights requirement of much longer than this. For example:
+
+```{r}
+print(listings_short[1,])
+```
+
+These hosts may be using Airbnb to help them find a long-term tenant at their listing location. At this time, we will focus only on the typical Airbnb model and remove listings which have a minimum nights requirement of more than 14 days. 
+
+```{r}
+clean_listings = subset(listings_short, minimum_nights <= 14) #removes 766 entries
+```
+
+The pricing data will be easier to use if we reove the '$' from the values. Also, there are listings that do not require a security deposit or a cleaning fee. These should be changed to zeros, rather than null values. 
+
+```{r Retrieving four_nights_price}
+library(tidyr)
+#Remove '$' from 'price', 'security_deposit', and 'cleaning_fee
+clean_listings$price = substring(clean_listings$price,2)
+clean_listings$cleaning_fee = substring(clean_listings$cleaning_fee,2)
+#Remove commas from values over 999.99
+clean_listings$price = lapply(clean_listings$price, function(x) gsub(",","", x))
+clean_listings$cleaning_fee = lapply(clean_listings$cleaning_fee, function(x) gsub(",","", x))
+                                            
+#Replace null pricing values with zeros.
+sum(is.na(clean_listings$cleaning_fee))
+sum(clean_listings$cleaning_fee == "")
+clean_listings$cleaning_fee = as.numeric(clean_listings$cleaning_fee)
+clean_listings$cleaning_fee <- clean_listings$cleaning_fee %>% replace_na(0)
+#Check that no more NAs or ""
+sum(is.na(clean_listings$cleaning_fee))
+sum(clean_listings$cleaning_fee == "")
+clean_listings$four_nights_price = (as.numeric(clean_listings$price) * 4 + as.numeric(clean_listings$cleaning_fee))
+sum(is.na(clean_listings$four_nights_price))
+sum(clean_listings$four_nights_price == "")
+```
+
+
+
+```{r Checking all variables and cleaning data}
+#LATITUDE
+sum(is.na(clean_listings$latitude))
+sum(clean_listings$latitude == "")
+#LONGITUDE
+sum(is.na(clean_listings$longitude))
+sum(clean_listings$longitude == "")
+#ROOM TYPE
+sum(is.na(clean_listings$room_type))
+sum(clean_listings$room_type == "")
+#GUESTS INCLUDED
+sum(is.na(clean_listings$guests_included))
+sum(clean_listings$guests_included == "")
+#MINIMUM NIGHTS
+sum(is.na(clean_listings$minimum_nights))
+sum(clean_listings$minimum_nights == "")
+#CANCELLATION POLICY
+sum(is.na(clean_listings$cancellation_policy))
+sum(clean_listings$cancellation_policy == "")
+#NUMBER OF REVIEWS
+sum(is.na(clean_listings$number_of_reviews))
+sum(clean_listings$number_of_reviews == "")
+#NUMBER OF REVIEWS LTM
+sum(is.na(clean_listings$number_of_reviews_ltm))
+sum(clean_listings$number_of_reviews_ltm == "")
+#BED TYPE
+sum(is.na(clean_listings$bed_type))
+sum(clean_listings$bed_type == "")
+##################################################################################
+# VARIABLES THAT NEED TO BE CLEANED ##############################################
+##################################################################################
+#REVIEW SCORES RATING
+sum(is.na(clean_listings$review_scores_rating)) #2440
+sum(clean_listings$review_scores_rating == "")
+#Create dummy variable to detect whether a listing has a review or not - based on number_of_reviews
+clean_listings$has_reviews = !(is.na(clean_listings$review_scores_rating))
+sum(clean_listings$has_reviews == FALSE) #should be 2440
+#Impute mean review score to missing values
+list_with_review_scores = subset(clean_listings, !(is.na(review_scores_rating)))
+clean_listings$review_scores_rating = clean_listings$review_scores_rating %>% replace_na(mean(list_with_review_scores$review_scores_rating))
+sum(is.na(clean_listings$review_scores_rating))
+#HOST IS SUPERHOST
+sum(is.na(clean_listings$host_is_superhost))
+sum(clean_listings$host_is_superhost == "") #4
+clean_listings = subset(clean_listings, !(host_is_superhost == ""))
+sum(clean_listings$host_is_superhost == "")
+#BATHROOMS
+sum(is.na(clean_listings$bathrooms)) #20
+sum(clean_listings$bathrooms == "")
+clean_listings = subset(clean_listings, !(is.na(bathrooms)))
+sum(is.na(clean_listings$bathrooms))
+#BEDROOMS
+sum(is.na(clean_listings$bedrooms)) #4
+sum(clean_listings$bedrooms == "")
+clean_listings = subset(clean_listings, !(is.na(bedrooms)))
+sum(is.na(clean_listings$bedrooms))
+#BEDS
+sum(is.na(clean_listings$beds)) #4
+sum(clean_listings$beds == "")
+clean_listings = subset(clean_listings, !(is.na(beds)))
+sum(is.na(clean_listings$beds))
+#cleaning process removed a total of 32 rows for missing values
+#######################################################################
+#FINAL CHECK THAT DATA IS CLEAN
+sum(is.na(clean_listings))
+sum(clean_listings == "")
+
+## FUrther changing the datatypes of columns and making the data ready for RF
+
+clean_listings_new <- clean_listings[,3:ncol(clean_listings)]
+# Chaing the data type of columns 
+
+clean_listings_new$price <- as.numeric(clean_listings$price)
+sum(is.na(clean_listings_new$price) == T)
+clean_listings_new$has_reviews <- as.numeric(clean_listings_new$has_reviews)
+unique(clean_listings_new$has_reviews)
+clean_listings_new$host_is_superhost <- NULL
+
+## Just for precautionary measure, null imputing again
+i = 0
+j = 0
+for (i in 1:ncol(clean_listings_new)){
+  for(j in 1:nrow(clean_listings_new)){
+    #print(j)
+    if (is.na(clean_listings_new[j,i]) == T){
+      clean_listings_new[j,i] = 0
+    }
+  }
+}
+
+#making another dataset to be used later 
+clean_listings_new2 <- clean_listings_new
+clean_listings_new2$four_nights_price <- NULL
+#clean_listings_new$price <- NULL
+
+## making another dataset to be used later
+
+clean_listings_new4 <- clean_listings_new
+```
+
+#### Making training, validation and test datasets 
+
+
+```{r echo = FALSE}
+
+## Dividing the data into training and validation dataset  : 60,20,20
+
+lendata <- nrow(clean_listings_new)
+len60 <- as.integer((lendata*0.6))
+
+## Making the training, validation and test datasets 
+set.seed(1234)
+listings_train_ind <- sample(1:lendata,len60)
+listings_train <- clean_listings_new[listings_train_ind,]
+clean_listings_left1 <- clean_listings_new[-listings_train_ind,]
+listing_validation_ind <- sample(1:nrow(clean_listings_left1),as.integer(nrow(clean_listings_left1)/2))
+listing_validation <- clean_listings_left1[listing_validation_ind,]
+listing_test <- clean_listings_left1[-listing_validation_ind,]
+
+```
+
+
+
+
+```{r echo=FALSE}
+
+
+## Applying Random Forest and checking the errors 
+
+#library('randomForest')
+
+
+rfv1 <- randomForest(four_nights_price~., data = listings_train, mtry = ncol(listings_train)-1, ntree = 100 )
+plot(rfv1)
+rfv2 <- randomForest(four_nights_price~., data = listings_train, mtry = 23, ntree = 1000 )
+plot(rfv2)
+#rfv1 <- randomForest(price~., data = listings_train, mtry = ncol(listings_train), ntree = 1000 )
+#plot(rfv1)
+
+## Calculating OOS error 
+
+pred1 <- predict(rfv1, newdata = listing_validation)
+pred1oos <- mean(( pred1 - listing_validation$price)^2)
+pred1oos
+
+pred2 <- predict(rfv2, newdata = listing_validation)
+pred2oos <- mean(( pred2 - listing_validation$price)^2)
+pred2oos
+```
+
+
+```{r echo=FALSE}
+##trying for different mtry
+plist <-  c(5,10,15,20,24)
+validation_result <- data.frame()
+
+for (i in 1:length(plist)){
+  
+  rfvf1 <- randomForest(four_nights_price~., data = listings_train, mtry = plist[i], ntree = 100 )
+  rfvf2 <- randomForest(four_nights_price~., data = listings_train, mtry = plist[i], ntree = 50 )
+  rfvf3 <- randomForest(four_nights_price~., data = listings_train, mtry = plist[i], ntree = 800 )
+  pred1 <- predict(rfvf1, newdata = listing_validation)
+  pred1oos <- mean(( pred1 - listing_validation$four_nights_price)^2)
+  pred2 <- predict(rfvf2, newdata = listing_validation)
+  pred2oos <- mean(( pred2 - listing_validation$four_nights_price)^2)
+  pred3 <- predict(rfvf3, newdata = listing_validation)
+  pred3oos <- mean(( pred3 - listing_validation$four_nights_price)^2)
+  
+  
+  
+  pred1oos
+  
+  validation_result <- rbind(validation_result,c(plist[i],100,pred1oos))
+  validation_result <- rbind(validation_result,c(plist[i],50,pred2oos))
+  validation_result <- rbind(validation_result,c(plist[i],800,pred3oos))
+}
+
+colnames(validation_result) <- c('mtry','ntree','oos')
+validation_result
+
+```
+#### The results show that the model predicts best when all variables are there and ntree is 100. Plotting the variable importance to see if the model oss can be reduced further 
+
+```{r echo = FALSE}
+
+listings_train_test <- listings_train
+#listings_train$price <- NULL
+rfvi <- randomForest(four_nights_price~., data = listings_train, mtry = 23, ntree = 800 )
+varImpPlot(rfvi )
+
+```
+
+
+### Using XGBoost for the various solutions 
+
+```{r echo = FALSE}
+
+#install.packages("gbm")
+#library("gbm")
+# Checking for ntrees 
+
+boost_train1 <- gbm(four_nights_price~.,data= listings_train,distribution = "gaussian", n.trees = 5000, interaction.depth = 4)
+
+predboost2oos = list()
+#plotting oos for different trees 
+
+
+
+  
+p = c(500,1000,2000,3000,4000,5000)
+
+for(i in 1:length(p)){
+pboostred2 <- predict(boost_train1, newdata = listing_validation, n.trees = p[i])
+predboost2oos[i] <- mean(( pboostred2 - listing_validation$four_nights_price)^2)
+print(predboost2oos[i])
+}
+
+
+#changing depth and checking 
+boost_train2 <- gbm(four_nights_price~.,data= listings_train,distribution = "gaussian", n.trees = 5000, interaction.depth = 10)
+
+predboost1oos = list()
+#plotting oos for different trees 
+
+
+
+  
+p = c(500,1000,2000,3000,4000,5000)
+
+for(i in 1:length(p)){
+pboostred1 <- predict(boost_train1, newdata = listing_validation, n.trees = p[i])
+predboost1oos[i] <- mean(( pboostred1 - listing_validation$four_nights_price)^2)
+print(predboost1oos[i])
+}
+
+
+
+```
+### Changing the vairable back to price and applying xgboost as the errors were coming to be large 
+
+```{r echo = FALSE}
+
+#install.packages("gbm")
+#library("gbm")
+# Checking for ntrees 
+
+clean_listings_new <- clean_listings_new2
+clean_listing_new 
+
+
+## Dividing the data into training and validation dataset  : 60,20,20
+
+lendata <- nrow(clean_listings_new)
+len60 <- as.integer((lendata*0.6))
+
+## Making the training, validation and test datasets 
+set.seed(1234)
+listings_train_ind <- sample(1:lendata,len60)
+listings_train <- clean_listings_new[listings_train_ind,]
+clean_listings_left1 <- clean_listings_new[-listings_train_ind,]
+listing_validation_ind <- sample(1:nrow(clean_listings_left1),as.integer(nrow(clean_listings_left1)/2))
+listing_validation <- clean_listings_left1[listing_validation_ind,]
+listing_test <- clean_listings_left1[-listing_validation_ind,]
+
+
+
+boost_train1 <- gbm(price~.,data= listings_train,distribution = "gaussian", n.trees = 5000, interaction.depth = 4)
+
+predboost4oos = list()
+#plotting oos for different trees 
+
+
+
+  
+p = c(500,1000,2000,3000,4000,5000)
+
+for(i in 1:length(p)){
+pboostred4 <- predict(boost_train1, newdata = listing_validation, n.trees = p[i])
+predboost4oos[i] <- mean(( pboostred4 - listing_validation$price)^2)
+print(predboost4oos[i])
+}
+
+```
+
+
+## Applying random forest for price only 
+
+```{r echo = FALSE}
+# Applying random forest 
+plist <-  c(5,10,15,20,24)
+validation_result <- data.frame()
+
+for (i in 1:length(plist)){
+
+rfvf4 <- randomForest(price~., data = listings_train, mtry = plist[2], ntree = 50)
+
+  pred4 <- predict(rfvf4, newdata = listing_validation)
+  pred4oos <- mean(( pred4 - listing_validation$price)^2)
+  pred4table <- cbind(pred4,listing_validation$price)
+  pred4table <- as.data.frame(pred4table)
+  pred4table$diff <- pred4table$pred4 - pred4table$V2
+  
+  
+  #validation_result <- rbind(validation_result,c(plist[i],100,pred1oos))
+  #validation_result <- rbind(validation_result,c(plist[i],50,pred2oos))
+  validation_result <- rbind(validation_result,c(plist[i],800,pred4oos))
+}
+
+
+colnames(validation_result) <- c('mtry','ntree','oos')
+validation_result
+
+```
+
+
+
+```{r echo = FALSE}
+
+
+# Deepdiving and applying random forest again 
+plist <-  c(5,10,15,20,24)
+validation_result <- data.frame()
+
+for (i in 1:length(plist)){
+
+rfvf4 <- randomForest(price~., data = listings_train, mtry = plist[i], ntree = 500)
+
+  pred4 <- predict(rfvf4, newdata = listing_validation)
+  pred4oos <- mean(( pred4 - listing_validation$price)^2)
+  pred4table <- cbind(pred4,listing_validation$price)
+  pred4table <- as.data.frame(pred4table)
+  pred4table$diff <- pred4table$pred4 - pred4table$V2
+  pred4table$absdiff <- abs(pred4table$diff)
+  pred4table$reldiff <- abs(pred4table$diff)/pred4table$V2
+  pred4table$flag1 <- ifelse(abs(pred4table$diff) < 200,1,0)
+  pred4table$flag2 <- ifelse(abs(pred4table$diff) < 50,1,0)
+  pred4table$flag4 <- ifelse((pred4table$reldiff) < 0.50,1,0)
+    
+  sumflag1 <- sum(pred4table$flag1)
+  sumflag2 <- sum(pred4table$flag2)
+  sumflag4 <- sum(pred4table$flag4)
+  percent4 <- sumflag4/nrow(pred4table)
+  percent2 <- sumflag2/nrow(pred4table)
+  percent1 <- sumflag1/nrow(pred4table)
+  
+  #validation_result <- rbind(validation_result,c(plist[i],100,pred1oos))
+  #validation_result <- rbind(validation_result,c(plist[i],50,pred2oos))
+  validation_result <- rbind(validation_result,c(plist[i],500,pred4oos,percent1,percent2,percent4))
+}
+
+
+colnames(validation_result) <- c('mtry','ntree','oos','percent<200','percent<50','percent<0.50')
+validation_result
+
+
+```
+
+
+
+
+
+# trying this n = 800
+
+
+```{r echo = FALSE}
+
+
+# Deepdiving and applying random forest again 
+plist <-  c(15)
+validation_result <- data.frame()
+
+rfvf5 <- randomForest(price~., data = listings_train, mtry = 15, ntree = 800)
+
+
+ pred4 <- predict(rfvf5, newdata = listing_validation)
+  pred4oos <- mean(( pred4 - listing_validation$price)^2)
+  pred4table <- cbind(pred4,listing_validation$price)
+  pred4table <- as.data.frame(pred4table)
+  pred4table$diff <- pred4table$pred4 - pred4table$V2
+  pred4table$absdiff <- abs(pred4table$diff)
+  pred4table$reldiff <- abs(pred4table$diff)/pred4table$pred4
+  pred4table$flag1 <- ifelse(abs(pred4table$diff) < 200,1,0)
+  pred4table$flag2 <- ifelse(abs(pred4table$diff) < 50,1,0)
+  pred4table$flag4 <- ifelse((pred4table$reldiff) < 0.50,1,0)
+    
+  sumflag1 <- sum(pred4table$flag1)
+  sumflag2 <- sum(pred4table$flag2)
+  sumflag4 <- sum(pred4table$flag4)
+  percent4 <- sumflag4/nrow(pred4table)
+  percent2 <- sumflag2/nrow(pred4table)
+  percent1 <- sumflag1/nrow(pred4table)
+
+
+#colnames(validation_result) <- c('mtry','ntree','oos','percent<200','percent<50','percent<0.50')
+#validation_result
+
+
+```
+
+
+
+### making changes to the price variable and applying xgboost as the errors were coming to be large 
+
+```{r echo = FALSE}
+
+#install.packages("gbm")
+#library("gbm")
+# Checking for ntrees 
+
+clean_listings_new <- clean_listings_new2
+clean_listings_new <- clean_listings_new[which(clean_listings_new$price < 500),]
+
+
+## Dividing the data into training and validation dataset  : 60,20,20
+
+lendata <- nrow(clean_listings_new)
+len60 <- as.integer((lendata*0.6))
+
+## Making the training, validation and test datasets 
+set.seed(1234)
+listings_train_ind <- sample(1:lendata,len60)
+listings_train <- clean_listings_new[listings_train_ind,]
+clean_listings_left1 <- clean_listings_new[-listings_train_ind,]
+listing_validation_ind <- sample(1:nrow(clean_listings_left1),as.integer(nrow(clean_listings_left1)/2))
+listing_validation <- clean_listings_left1[listing_validation_ind,]
+listing_test <- clean_listings_left1[-listing_validation_ind,]
+
+
+
+boost_train1 <- gbm(price~.,data= listings_train,distribution = "gaussian", n.trees = 5000, interaction.depth = 4)
+
+predboost4oos = list()
+rmsepredboost4oos = list()
+#plotting oos for different trees 
+
+
+
+  
+p = c(500,1000,2000,3000,4000,5000)
+
+for(i in 1:length(p)){
+pboostred4 <- predict(boost_train1, newdata = listing_validation, n.trees = p[i])
+#predboost4oos[i] <- mean(( pboostred4 - listing_validation$price)^2)
+rmsepredboost4oos[i] <- sqrt(sum((pboostred4 - listing_validation$price)^2)/nrow(listing_validation))
+print("root mean square error is")
+print(rmsepredboost4oos[i])
+#print("mean square error is ")
+print("")
+}
+
+```
+
+
+## We saw that with n = 1000 it give less rmse, trying now with different depths and measuring rmse 
+
+
+```{r echo = FALSE }
+#install.packages("gbm")
+#library("gbm")
+# Checking for ntrees 
+
+clean_listings_new <- clean_listings_new2
+clean_listings_new <- clean_listings_new[which(clean_listings_new$price < 500),]
+
+
+## Dividing the data into training and validation dataset  : 60,20,20
+
+lendata <- nrow(clean_listings_new)
+len60 <- as.integer((lendata*0.6))
+
+## Making the training, validation and test datasets 
+set.seed(1234)
+listings_train_ind <- sample(1:lendata,len60)
+listings_train <- clean_listings_new[listings_train_ind,]
+clean_listings_left1 <- clean_listings_new[-listings_train_ind,]
+listing_validation_ind <- sample(1:nrow(clean_listings_left1),as.integer(nrow(clean_listings_left1)/2))
+listing_validation <- clean_listings_left1[listing_validation_ind,]
+listing_test <- clean_listings_left1[-listing_validation_ind,]
+
+dep = c('2','4','10','15')
+
+for(i in 1:length(dep)){
+boost_train1 <- gbm(price~.,data= listings_train,distribution = "gaussian", n.trees = 1000, interaction.depth = dep[i])
+
+
+rmsepredboost4oos = list()
+pboostred4 <- predict(boost_train1, newdata = listing_validation, n.trees = 1000)
+
+rmsepredboost4oos[i] <- sqrt(sum((pboostred4 - listing_validation$price)^2)/nrow(listing_validation))
+print("root mean square error is")
+print(rmsepredboost4oos[i])
+}
+
+```
+
+## The depth of 4 suits the best, trying for different shrinkages now
+
+```{r echo = Falae}
+
+sh = c(0.4,0.2, 0.1, 0.002,0.001)
+
+for(i in 1:length(dep)){
+boost_train1 <- gbm(price~.,data= listings_train,distribution = "gaussian", n.trees = 1000, interaction.depth =2)
+
+
+rmsepredboost4oos = list()
+pboostred4 <- predict(boost_train1, newdata = listing_validation, n.trees = 1000)
+
+rmsepredboost4oos[i] <- sqrt(sum((pboostred4 - listing_validation$price)^2)/nrow(listing_validation))
+print("root mean square error is")
+print(rmsepredboost4oos[i])
+}
+
+
+```
+
+
+
+
+## we got the value of shrinkage, now plotting for importance 
+
+```{r echo = Falae}
+
+
+boost_train1 <- gbm(price~.,data= listings_train,distribution = "gaussian", n.trees = 1000, interaction.depth =2)
+summary(boost_train1)
+
+```
+
+## Taking the important variables and plotting it again 
+
+```{r echo = FALSE}
+
+imptable <- as.data.frame(summary(boost_train1))
+impvec <- imptable[1:18,1]
+listings_train_imp <- listings_train[,impvec]
+listing_validation_imp <- listing_validation[,impvec]
+
+
+boost_train1 <- gbm(price~.,data= listings_train_imp,distribution = "gaussian", n.trees = 1000, interaction.depth =2, shrinkage = 0.1)
+rmsepredboost4oos = list()
+pboostred4 <- predict(boost_train1, newdata = listing_validation_imp, n.trees = 1000)
+
+rmsepredboost4oos <- sqrt(sum((pboostred4 - listing_validation_imp$price)^2)/nrow(listing_validation_imp))
+print("root mean square error is")
+print(rmsepredboost4oos)
+
+```
