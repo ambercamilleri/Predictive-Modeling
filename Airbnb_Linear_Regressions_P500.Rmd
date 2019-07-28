@@ -1,0 +1,114 @@
+Airbnb Project Linear and Multiple Regression
+
+```{r}
+rm(list=ls())
+setwd("C:/Users/rmead/Documents/UT MSBA/Predictive Modeling/R Files/Predictive Modeling Project")
+listings_raw = read.csv("clean_listings_price500_v2.csv") #open the .csv file
+
+#####################
+### LASSO & Ridge ###
+#####################
+
+
+##LASSO & RIDGE ##
+
+library(glmnet)
+
+fix(listings_raw)
+
+listings_cleaned= subset(listings_raw, listings_raw$price > 0)
+
+attach(listings_cleaned)
+
+logPrice = log(as.numeric(price))
+
+
+airbnbx = listings_cleaned[,-c(5, 9, 10, 16)] #price and non-numeric
+
+fix(airbnbx)
+
+n = dim(airbnbx)[1]
+tr = sample(1:n,5500)
+
+XXabb = model.matrix(~.*longitude*latitude, data=data.frame(scale(airbnbx)))[,-1]
+ABBdata = data.frame(logPrice,XXabb)
+
+null = lm(logPrice~1, data=ABBdata[tr,])
+full = glm(logPrice~., data=ABBdata[tr,])
+
+regForward = step(null, scope=formula(full), direction="forward", k=log(length(tr)))
+regBack = step(full, direction="backward", k=log(length(tr)))
+regStep = step(null, scope=formula(full), direction="both", k=log(length(tr)))
+  
+summary(regForward)
+summary(regBack)
+summary(regStep)
+
+##############################################################
+#### Out of Curiousity, Let's Create a Correlation Matrix ####
+##############################################################
+
+corr_coefs = cor(listings_cleaned[,-c(9,10,16)]) # Remove non-numeric
+
+print(round(corr_coefs, 2))
+
+print(corr_coefs)
+
+##############################################################
+############### LASSO & RIDGE ################################
+##############################################################
+
+XXabb = scale(XXabb)  
+  
+Lasso.Fit = glmnet(XXabb[tr,], logPrice[tr])
+Ridge.Fit = glmnet(XXabb[tr,], logPrice[tr], alpha=0)
+
+par(mfrow=c(1,2))
+plot(Lasso.Fit)
+plot(Ridge.Fit)
+
+
+CV.L = cv.glmnet(XXabb[tr,], logPrice[tr],alpha=1)
+CV.R = cv.glmnet(XXabb[tr,], logPrice[tr],alpha=0)
+
+LamR = CV.R$lambda.1se
+LamL = CV.L$lambda.1se
+
+par(mfrow=c(1,2))
+plot(log(CV.R$lambda),sqrt(CV.R$cvm),main="Ridge CV (k=10)",xlab="log(lambda)",ylab = "RMSE",col=4,type="b",cex.lab=1.2)
+abline(v=log(LamR),lty=2,col=2,lwd=2)
+plot(log(CV.L$lambda),sqrt(CV.L$cvm),main="LASSO CV (k=10)",xlab="log(lambda)",ylab = "RMSE",col=4,type="b",cex.lab=1.2)
+abline(v=log(LamL),lty=2,col=2,lwd=2)
+
+
+coef.R = predict(CV.R,type="coefficients",s=LamR)
+coef.L = predict(CV.L,type="coefficients",s=LamL)
+
+par(mfrow=c(1,1))
+plot(abs(coef.R[2:20]),abs(coef.L[2:20]),ylim=c(0,1),xlim=c(0,1))
+abline(0,1)
+
+####################################################################################
+##### Experiment with relationships using Linear and Multiple Regression by Hand ###
+####################################################################################
+
+fix(listings_raw)
+fix(logPrice)
+
+multRegByHand = lm(logPrice~ number_of_reviews + latitude + longitude + bedrooms + bathrooms + entire_house_0_private_rm_0_shared_rm_1 + entire_house_0_private_rm_1_shared_rm_0 + has_reviews)
+
+summary(multRegByHand)
+
+Price_Bedrooms = lm(price~bedrooms)
+summary(Price_Bedrooms)
+
+Price_Bathrooms = lm(price~bathrooms)
+summary(Price_Bathrooms)
+
+Price_Beds = lm(price~beds)
+summary((Price_Beds))
+
+mult_reg1 = lm(price~ bedrooms + bathrooms + beds)
+summary(mult_reg1)
+
+```
