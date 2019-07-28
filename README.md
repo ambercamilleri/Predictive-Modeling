@@ -31,3 +31,11 @@ Changes Include:
 - Formatted 'price' column to remove decimal places
 - Drop 'id' and 'name' column
 - Write 'clean_listings_price500' to csv
+
+### New CSV File --> "clean_listings_price500" 
+- converted some of the non-numeric variables into 0-1 / or dummy variables
+
+### Airbnb_Linear_Regressions_P500
+- Forward, Backward, and Stepwise Multiple Regressions
+- Ridge & Lassso (not using some - 2, I think - non-numeric variables)
+- Explore relationships by creating correlation table and linear regressions
