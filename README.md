@@ -39,3 +39,8 @@ Changes Include:
 - Forward, Backward, and Stepwise Multiple Regressions
 - Ridge & Lassso (not using some - 2, I think - non-numeric variables)
 - Explore relationships by creating correlation table and linear regressions
+
+### Airbnb_RF_Boosting: 
+- Tried predicting with price > 500 but RMSE was coming out to be huge with all the tree techniques 
+- Predicted for price < 500 and RMSE is coming ~77. 
+- Tried with different depths, aplha values , sizes and important variables 
