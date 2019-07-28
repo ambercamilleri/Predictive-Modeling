@@ -5,12 +5,9 @@ rm(list=ls())
 setwd("C:/Users/rmead/Documents/UT MSBA/Predictive Modeling/R Files/Predictive Modeling Project")
 listings_raw = read.csv("clean_listings_price500_v2.csv") #open the .csv file
 
-#####################
-### LASSO & Ridge ###
-#####################
-
-
-##LASSO & RIDGE ##
+###########################################################
+### Forward, Backward, and Stepwise Multiple Regression ###
+###########################################################
 
 library(glmnet)
 
