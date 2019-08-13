@@ -1,0 +1,88 @@
+---
+title: "Final Code"
+output: html_document
+---
+
+```{r}
+rm(list=ls())
+#setwd("~/R/Predictive Modeling AirBnB Project")
+listings_raw = read.csv("listings.csv") #open the .csv file
+
+library(dplyr)
+listings_short = select(listings_raw, id, name, latitude, longitude, room_type, price, guests_included, minimum_nights, review_scores_rating, cancellation_policy, host_is_superhost, number_of_reviews, number_of_reviews_ltm, bathrooms, bedrooms, beds, bed_type)
+
+clean_listings = subset(listings_short, minimum_nights <= 14) #removes 766 entries
+
+library(tidyr)
+#Remove '$' from 'price'
+clean_listings$price = substring(clean_listings$price,2)
+
+x=clean_listings$price
+x = as.numeric(gsub(",","",x))
+clean_listings$price = x
+
+clean_listings = subset(clean_listings, !(is.na(price)))
+```
+
+
+Now that we know what the dataset looks like, we can see it contains over 100 columns, some of which will not be useful for our purpose. We have chosen several variables we are interested in exploring further, so we will create a new dataset that is limited to just those variables. 
+
+Typical Airbnb listings are vacation-type rentals that are rented out for a time period between one day and two weeks. However, we can see that some Airbnb hosts are have a minimum nights requirement of much longer than this. For example:
+
+```{r}
+max(clean_listings$price)
+min(clean_listings$price)
+sd(clean_listings$price)
+hist(clean_listings$price, main = "Price distribution in initial dataset", xlab="Price")
+```
+
+These hosts may be using Airbnb to help them find a long-term tenant at their listing location. At this time, we will focus only on the typical Airbnb model and remove listings which have a minimum nights requirement of more than 14 days. 
+
+
+
+```{r Checking all variables and cleaning data}
+clean_listings = subset(clean_listings, price > 0)
+
+#REVIEW SCORES RATING
+clean_listings$has_reviews = !(is.na(clean_listings$review_scores_rating))
+#Impute mean review score to missing values
+list_with_review_scores = subset(clean_listings, !(is.na(review_scores_rating)))
+clean_listings$review_scores_rating = clean_listings$review_scores_rating %>% replace_na(mean(list_with_review_scores$review_scores_rating))
+
+#HOST IS SUPERHOST
+clean_listings = subset(clean_listings, !(host_is_superhost == ""))
+
+#BATHROOMS
+clean_listings = subset(clean_listings, !(is.na(bathrooms)))
+
+#BEDROOMS
+clean_listings = subset(clean_listings, !(is.na(bedrooms)))
+
+#BEDS
+clean_listings = subset(clean_listings, !(is.na(beds)))
+
+#cleaning process removed a total of 32 rows for missing values
+#######################################################################
+#FINAL CHECK THAT DATA IS CLEAN
+sum(is.na(clean_listings))
+sum(clean_listings == "")
+```
+
+
+```{r}
+#Drop 'id' column
+clean_listings$id <-NULL
+#Drop 'name' column
+clean_listings$name <-NULL
+head(clean_listings)
+
+clean_listings_price500 = subset(clean_listings, price <= 500)
+
+#Remove decimal values (bc we are only keeping values <=500 we can keep 3 sig digits)
+format(clean_listings_price500$price, digits=3)
+
+max(clean_listings_price500$price)
+min(clean_listings_price500$price)
+sd(clean_listings_price500$price)
+hist(clean_listings_price500$price, main = "Price distribution in cleaned dataset", xlab="Price")
+```
