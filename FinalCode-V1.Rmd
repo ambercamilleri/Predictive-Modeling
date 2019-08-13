@@ -7,6 +7,7 @@ output: html_document
 rm(list=ls())
 #setwd("~/R/Predictive Modeling AirBnB Project")
 listings_raw = read.csv("listings.csv") #open the .csv file
+attach(listings_raw)
 
 library(dplyr)
 listings_short = select(listings_raw, id, name, latitude, longitude, room_type, price, guests_included, minimum_nights, review_scores_rating, cancellation_policy, host_is_superhost, number_of_reviews, number_of_reviews_ltm, bathrooms, bedrooms, beds, bed_type)
