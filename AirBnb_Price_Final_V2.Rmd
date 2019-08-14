@@ -973,28 +973,51 @@ summary(boost_train1)
 ```
 
 
+#### It sbows one of the variables as not important removing the variable.
 
-#### Combining train and validation and predicting on test
+#### Removing that variable, combining train and validation and predicting on test
 
 
 ```{r echo = FALSE}
 set.seed(1234)
+ntimp = " "
+varimp_gbm$var <- as.character(varimp_gbm$var)
 
 listings_train_validation = rbind(listings_train, listing_validation)
+listings_train_validation[, which(colnames(listings_train_validation) == varimp_gbm[23,1])] <- NULL
+listing_test[, which(colnames(listing_test) == varimp_gbm[23,1])] <- NULL
 
 
-boost_train1 <- gbm(price~.,data= listings_train,distribution = "gaussian", n.trees = 2000, interaction.depth = 10, shrinkage = 0.005)
-
+boost_train1 <- gbm(price~.,data= listings_train_validation,distribution = "gaussian", n.trees = 2000, interaction.depth = 10, shrinkage = 0.005)
 
 pboostred4 <- predict(boost_train1, newdata = listing_test, n.trees = 2000)
 #predboost4oos[i] <- mean(( pboostred4 - listing_validation$price)^2)
 
-
-
 rmsepredboost4oos <- sqrt(sum((pboostred4 - listing_test$price)^2)/nrow(listing_test))
-rmsepredboost4oos
+print("RMSE is")
+print(rmsepredboost4oos)
+
+p=ncol(listing_test)-1 
+
+vsum=summary(boost_train1) #this will have the variable importance info
+row.names(vsum)=NULL #drop varable names from rows.
+
+ggplot(vsum, aes(x=reorder(vsum$var, vsum$rel.inf), y=vsum$rel.inf)) + 
+  geom_bar(stat='identity') + 
+  labs(title="Variable Importance o GBM", 
+       #caption="Source: mpg data set in R",
+       y="Variable Importance",
+       x = "Variables") + 
+  theme(axis.text.x = element_text(angle=90, vjust=0.6))
 
 
+## Plotting the fit for the model
+plot(listing_test$price,pboostred4,xlab='test price',ylab='predicted price')
+abline(0,1,col='red',lwd=2)
+
+
+
+```
 
 
 
