@@ -97,8 +97,9 @@ Correlation Matrix (Numeric Variables Only)
 ```{r}
 library(fastDummies)
 library(Hmisc)
+#install.packages('corrplot')
 library(corrplot)
-clean_listings=read.csv("https://raw.githubusercontent.com/ckreke/Predictive-Modeling/master/clean_listings_price500.csv")
+clean_listings = data.frame(clean_listings_price500)
 attach(clean_listings)
 head(clean_listings) #examine the data in window
 ```
@@ -133,7 +134,6 @@ clean_listings.cor = cor(clean_listings, method = c("spearman"))
 Run the correlation matrix with significance levels (p-values)
 ```{r, include=FALSE}
 clean_listings.rcorr = rcorr(as.matrix(clean_listings))
-clean_listings.rcorr
 ```
 
 ```{r}
@@ -157,8 +157,7 @@ corrplot.mixed(clean_listings.cor)
 Correlation Matrix (With Dummy Variables)
 -----------------------------------------
 ```{r}
-rm(list=ls())
-clean_listings = read.csv("https://raw.githubusercontent.com/ckreke/Predictive-Modeling/master/clean_listings_price500.csv") #open the .csv file
+clean_listings = data.frame(clean_listings_price500)
 attach(clean_listings)
 head(clean_listings) #examine the data in window
 ```
@@ -222,8 +221,8 @@ Predictor Plots
 -----------------
 
 ```{r, include=FALSE}
-rm(list=ls())
-clean_listings = read.csv("https://raw.githubusercontent.com/ckreke/Predictive-Modeling/master/clean_listings_price500.csv") #open the .csv file
+
+clean_listings = data.frame(clean_listings_price500)
 head(clean_listings) #examine the data in window
 attach(clean_listings)
 ```
@@ -334,7 +333,7 @@ pairs(cbind(price, guests_included, minimum_nights, cancellation_policy, host_is
 Price Distribution Map
 -----------------------
 ```{r, echo=FALSE}
-clean_listings = read.csv("https://raw.githubusercontent.com/ckreke/Predictive-Modeling/master/clean_listings_price500_v2.csv") #open the .csv file
+clean_listings = data.frame(clean_listings_price500)
 head(clean_listings) #examine the data in window
 attach(clean_listings)
 
@@ -376,8 +375,8 @@ Ridge Regression and Lasso Model
 =================================
 
 ```{r}
-rm(list=ls())
-clean_listings = read.csv("https://raw.githubusercontent.com/ckreke/Predictive-Modeling/master/clean_listings_price500.csv") #open the .csv file
+
+clean_listings = data.frame(clean_listings_price500)
 head(clean_listings) #examine the data in window
 attach(clean_listings)
 ```
@@ -484,3 +483,67 @@ That'll give us a subset of the coefficients (our coefficient vector)
 ```{r}
 coef(lasso.tr, s=lam.best)
 ```
+
+## Run Subset Selection, Forward, Backward, and Step-wise Selection
+```{r}
+library(leaps)
+
+listings_cleaned= data.frame(clean_listings_price500)
+
+attach(listings_cleaned)
+
+########################
+### Subset selection ###
+########################
+
+regfit.full = regsubsets(price~.,listings_cleaned)
+summary(regfit.full)
+reg.summary=summary(regfit.full)
+which.max(reg.summary$adjr2)
+which.min(reg.summary$bic)
+
+#####################################################
+## Forward, Backward, Stepwise Multiple Regression ##
+#####################################################
+
+listings_cleaned = dummy_cols(listings_cleaned)
+
+logPrice = log(as.numeric(price))
+
+
+airbnbx = listings_cleaned[,-c(3,4,8,9,15,16,19,20,27,32)] #price original columns for which dummy variables now exist
+
+#fix(airbnbx)
+
+n = dim(airbnbx)[1]
+tr = sample(1:n,5000)
+
+XXabb = model.matrix(~.*longitude*latitude, data=data.frame(scale(airbnbx)))[,-1]
+ABBdata = data.frame(logPrice,XXabb)
+
+null = lm(logPrice~1, data=ABBdata[tr,])
+full = glm(logPrice~., data=ABBdata[tr,])
+
+regForward = step(null, scope=formula(full), direction="forward", k=log(length(tr)))
+regBack = step(full, direction="backward", k=log(length(tr)))
+regStep = step(null, scope=formula(full), direction="both", k=log(length(tr)))
+  
+summary(regForward)
+summary(regBack)
+summary(regStep)
+
+predict.fwd = exp(predict(regForward, ABBdata[-tr,]))
+resid.fwd = price[-tr] - predict.fwd
+rmse.fwd = sqrt(mean(resid.fwd^2))
+
+predict.bwd = exp(predict(regBack, ABBdata[-tr,]))
+resid.bwd = price[-tr] - predict.bwd
+rmse.bwd = sqrt(mean(resid.bwd^2))
+
+predict.step = exp(predict(regStep, ABBdata[-tr,]))
+resid.step = price[-tr] - predict.step
+rmse.step = sqrt(mean(resid.step^2))
+
+coef(regStep)                 
+```
+
