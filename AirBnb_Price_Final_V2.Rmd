@@ -1,0 +1,1001 @@
+---
+title: "Final Code"
+output: html_document
+---
+
+```{r}
+rm(list=ls())
+#setwd("~/R/Predictive Modeling AirBnB Project")
+listings_raw = read.csv("C:/Users/raisi/Documents/listings.csv") #open the .csv file
+attach(listings_raw)
+
+library(dplyr)
+listings_short = select(listings_raw, id, name, latitude, longitude, room_type, price, guests_included, minimum_nights, review_scores_rating, cancellation_policy, host_is_superhost, number_of_reviews, number_of_reviews_ltm, bathrooms, bedrooms, beds, bed_type)
+
+
+
+clean_listings = subset(listings_short, minimum_nights <= 14) #removes 766 entries
+
+library(tidyr)
+#Remove '$' from 'price'
+clean_listings$price = substring(clean_listings$price,2)
+
+x=clean_listings$price
+x = as.numeric(gsub(",","",x))
+clean_listings$price = x
+
+clean_listings = subset(clean_listings, !(is.na(price)))
+```
+
+
+Now that we know what the dataset looks like, we can see it contains over 100 columns, some of which will not be useful for our purpose. We have chosen several variables we are interested in exploring further, so we will create a new dataset that is limited to just those variables. 
+
+Typical Airbnb listings are vacation-type rentals that are rented out for a time period between one day and two weeks. However, we can see that some Airbnb hosts are have a minimum nights requirement of much longer than this. For example:
+
+```{r}
+max(clean_listings$price)
+min(clean_listings$price)
+sd(clean_listings$price)
+hist(clean_listings$price, main = "Price distribution in initial dataset", xlab="Price")
+```
+
+These hosts may be using Airbnb to help them find a long-term tenant at their listing location. At this time, we will focus only on the typical Airbnb model and remove listings which have a minimum nights requirement of more than 14 days. 
+
+
+
+```{r Checking all variables and cleaning data}
+clean_listings = subset(clean_listings, price > 0)
+
+#REVIEW SCORES RATING
+clean_listings$has_reviews = !(is.na(clean_listings$review_scores_rating))
+#Impute mean review score to missing values
+list_with_review_scores = subset(clean_listings, !(is.na(review_scores_rating)))
+clean_listings$review_scores_rating = clean_listings$review_scores_rating %>% replace_na(mean(list_with_review_scores$review_scores_rating))
+
+#HOST IS SUPERHOST
+clean_listings = subset(clean_listings, !(host_is_superhost == ""))
+
+#BATHROOMS
+clean_listings = subset(clean_listings, !(is.na(bathrooms)))
+
+#BEDROOMS
+clean_listings = subset(clean_listings, !(is.na(bedrooms)))
+
+#BEDS
+clean_listings = subset(clean_listings, !(is.na(beds)))
+
+#cleaning process removed a total of 32 rows for missing values
+#######################################################################
+#FINAL CHECK THAT DATA IS CLEAN
+sum(is.na(clean_listings))
+sum(clean_listings == "")
+```
+
+
+```{r}
+#Drop 'id' column
+clean_listings$id <-NULL
+#Drop 'name' column
+clean_listings$name <-NULL
+head(clean_listings)
+
+clean_listings_price500 = subset(clean_listings, price <= 500)
+
+#Remove decimal values (bc we are only keeping values <=500 we can keep 3 sig digits)
+format(clean_listings_price500$price, digits=3)
+
+max(clean_listings_price500$price)
+min(clean_listings_price500$price)
+sd(clean_listings_price500$price)
+hist(clean_listings_price500$price, main = "Price distribution in cleaned dataset", xlab="Price")
+```
+
+
+
+
+
+Correlation Matrix (Numeric Variables Only)
+-------------------------------------------
+```{r}
+library(fastDummies)
+library(Hmisc)
+#install.packages('corrplot')
+library(corrplot)
+clean_listings = data.frame(clean_listings_price500)
+attach(clean_listings)
+head(clean_listings) #examine the data in window
+```
+
+
+```{r}
+#Drop non-numeric columns
+clean_listings$room_type <-NULL
+clean_listings$cancellation_policy <- NULL
+clean_listings$host_is_superhost <- NULL
+clean_listings$bed_type <- NULL
+head(clean_listings)
+```
+
+```{r}
+names(clean_listings) <- c("lat", "long", "price", "guests", "min_nts", "rs", "numr", "numr_ltm", "bathr", "bedr", "beds", "hasr")
+head(clean_listings)
+```
+
+```{r, include=FALSE}
+cor(clean_listings, use="pairwise.complete.obs")
+```
+
+```{r}
+clean_listings.cor = cor(clean_listings)
+```
+
+```{r}
+clean_listings.cor = cor(clean_listings, method = c("spearman"))
+```
+
+Run the correlation matrix with significance levels (p-values)
+```{r, include=FALSE}
+clean_listings.rcorr = rcorr(as.matrix(clean_listings))
+```
+
+```{r}
+clean_listings.coeff = clean_listings.rcorr$r
+clean_listings.p = clean_listings.rcorr$P
+```
+
+
+Visualizing the Correlation Matrix (Numeric Variables Only)
+-----------------------------------------------------------
+```{r}
+{plot.new(); dev.off()}
+corrplot.mixed(clean_listings.cor)
+#corrplot(clean_listings.cor, tl.pos="n")
+```
+
+
+
+
+
+Correlation Matrix (With Dummy Variables)
+-----------------------------------------
+```{r}
+clean_listings = data.frame(clean_listings_price500)
+attach(clean_listings)
+head(clean_listings) #examine the data in window
+```
+
+
+Create Dummy Variables for non-integer columns
+```{r}
+clean_listings = dummy_cols(clean_listings)
+head(clean_listings)
+```
+
+```{r}
+#Drop non-numeric columns
+clean_listings$room_type <-NULL
+clean_listings$cancellation_policy <- NULL
+clean_listings$host_is_superhost <- NULL
+clean_listings$bed_type <- NULL
+head(clean_listings)
+```
+
+```{r}
+names(clean_listings) <- c("lat", "long", "price", "guests", "min", "rs", "numr", "numr_ltm", "bathr", "bedr", "beds", "hasr", "rt_entire", "rt_priv", "rt_share", "cp_14", "cp_mod", "cp_flex", "cp_30", "cp_60", "cp_strict", "supert", "superf", "bt_real", "bt_futon", "bt_couch", "bt_airbed", "bt_pull" )
+head(clean_listings)
+```
+
+```{r, include=FALSE}
+cor(clean_listings, use="pairwise.complete.obs")
+```
+
+```{r}
+clean_listings.cor = cor(clean_listings)
+```
+
+```{r}
+clean_listings.cor = cor(clean_listings, method = c("spearman"))
+```
+
+Run the correlation matrix with significance levels (p-values)
+```{r, include=FALSE}
+clean_listings.rcorr = rcorr(as.matrix(clean_listings))
+clean_listings.rcorr
+```
+
+```{r}
+clean_listings.coeff = clean_listings.rcorr$r
+clean_listings.p = clean_listings.rcorr$P
+```
+
+Visualizing the Correlation Matrix (With Dummy Variables)
+---------------------------------------------------------
+```{r}
+{plot.new(); dev.off()}
+corrplot.mixed(clean_listings.cor)
+#corrplot(clean_listings.cor, tl.pos="n")
+```
+
+
+
+
+Predictor Plots
+-----------------
+
+```{r, include=FALSE}
+
+clean_listings = data.frame(clean_listings_price500)
+head(clean_listings) #examine the data in window
+attach(clean_listings)
+```
+
+
+#Descriptive Statistics
+```{r}
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...) {
+    usr <- par("usr")
+    on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- cor(x, y)
+    txt <- format(c(r, 0.123456789), digits = digits)[1]
+    txt <- paste0(prefix, txt)
+    text(0.5, 0.5, txt)
+}
+
+pairs(cbind(price, latitude, longitude, guests_included, minimum_nights, review_scores_rating, cancellation_policy, host_is_superhost, number_of_reviews, number_of_reviews_ltm, bathrooms, bedrooms, beds, bed_type, has_reviews), 
+      upper.panel= panel.smooth, 
+      lower.panel = panel.cor)
+```
+
+```{r}
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...) {
+    usr <- par("usr")
+    on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- cor(x, y)
+    txt <- format(c(r, 0.123456789), digits = digits)[1]
+    txt <- paste0(prefix, txt)
+    text(0.5, 0.5, txt)
+}
+
+pairs(cbind(price, bedrooms, room_type, bathrooms, number_of_reviews_ltm), 
+      upper.panel= panel.smooth, 
+      lower.panel = panel.cor)
+```
+
+
+```{r}
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...) {
+    usr <- par("usr")
+    on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- cor(x, y)
+    txt <- format(c(r, 0.123456789), digits = digits)[1]
+    txt <- paste0(prefix, txt)
+    text(0.5, 0.5, txt)
+}
+
+pairs(cbind(price, review_scores_rating, number_of_reviews, number_of_reviews_ltm, has_reviews), upper.panel= panel.smooth, lower.panel = panel.cor)
+```
+
+
+```{r}
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...) {
+    usr <- par("usr")
+    on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- cor(x, y)
+    txt <- format(c(r, 0.123456789), digits = digits)[1]
+    txt <- paste0(prefix, txt)
+    text(0.5, 0.5, txt)
+}
+
+pairs(cbind(price,bathrooms, bedrooms, beds, bed_type),
+      upper.panel= panel.smooth, 
+      lower.panel = panel.cor)
+```
+
+
+```{r}
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...) {
+    usr <- par("usr")
+    on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- cor(x, y)
+    txt <- format(c(r, 0.123456789), digits = digits)[1]
+    txt <- paste0(prefix, txt)
+    text(0.5, 0.5, txt)
+}
+
+pairs(cbind(price, latitude, longitude), 
+      upper.panel= panel.smooth, 
+      lower.panel = panel.cor)
+```
+
+
+```{r}
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...) {
+    usr <- par("usr")
+    on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- cor(x, y)
+    txt <- format(c(r, 0.123456789), digits = digits)[1]
+    txt <- paste0(prefix, txt)
+    text(0.5, 0.5, txt)
+}
+
+pairs(cbind(price, guests_included, minimum_nights, cancellation_policy, host_is_superhost), 
+      upper.panel= panel.smooth, 
+      lower.panel = panel.cor)
+```
+
+
+
+
+Price Distribution Map
+-----------------------
+```{r, echo=FALSE}
+clean_listings = data.frame(clean_listings_price500)
+head(clean_listings) #examine the data in window
+attach(clean_listings)
+
+library(ggplot2)
+library(ggmap)
+library(maptools)
+library(ggthemes)
+library(rgeos)
+library(broom)
+library(dplyr)
+library(plyr)
+library(grid)
+library(gridExtra)
+library(reshape2)
+library(scales)
+```
+
+#Let’s Make a Map of the Price Distribution by Location
+```{r}
+# Download a basemap using the ggmap package (PDF).
+basemap <- get_stamenmap(bbox = c(left=-98.03,bottom=30.1,top=30.52,right=-97.52),maptype = "toner-lite")
+
+# Plot price distribution by location (using latitude/longitude) 
+prices_mapped_by_year <- ggmap(basemap) + 
+  geom_point(data = clean_listings, aes(x = longitude, y = latitude, color = price), 
+             size = 2.5) +
+             scale_color_gradientn("Price per Night", colors = c("#9ddCEE","#46A5D3","#6E81BF","#8E76C9","#AF6BD4","#CF60DE","#F055E9"),
+             labels = scales::dollar_format(prefix = "$")) +
+  labs(title="Distribution AirBnB Prices in Austin,TX")
+
+prices_mapped_by_year
+```
+
+
+
+
+
+Ridge Regression and Lasso Model
+=================================
+
+```{r}
+
+clean_listings = data.frame(clean_listings_price500)
+head(clean_listings) #examine the data in window
+attach(clean_listings)
+```
+```{r}
+range(review_scores_rating)
+```
+
+
+Validation Set
+---------------
+```{r}
+x=model.matrix(price~.,clean_listings)
+y=clean_listings$price
+
+set.seed(1)
+train=sample(1:nrow(x), nrow(x)/2)
+test=(-train)
+y.test=y[test]
+```
+
+
+
+Ridge Regression
+-----------------
+We will use the package `glmnet`, which does not use the model formula language, so we will set up on an `x` and `y`.
+```{r}
+library(glmnet)
+```
+
+Fit a ridge-regression model. This is achieved by calling `glmnet` with `alpha=0` 
+```{r}
+fit.ridge=glmnet(x,y,alpha=0)
+plot(fit.ridge, xvar="lambda", label=TRUE)
+```
+
+Now we will use the `cv.glmnet` function to do the cross-validation
+```{r}
+cv.ridge=cv.glmnet(x,y,alpha=0)
+plot(cv.ridge)
+```
+
+
+
+Lasso
+------
+Now we fit a lasso model; for this we use the default `alpha=1`
+```{r}
+fit.lasso=glmnet(x,y)
+plot(fit.lasso, xvar="lambda", label=TRUE)
+summary(fit.lasso)
+```
+
+Percentage of deviance or R^2 explained (may be an indication that the end of the plot is overfit)
+```{r}
+fit.lasso=glmnet(x,y)
+plot(fit.lasso, xvar="dev", label=TRUE)
+```
+
+Cross Validation for Lasso
+```{r}
+cv.lasso = cv.glmnet(x, y)
+plot(cv.lasso)
+```
+
+Extract the coefficient from the CV object, it'll pick the coefficient vector corresponding to the best model
+```{r}
+coef(cv.lasso)
+```
+
+
+Suppose we want to use our earlier train/validation division to select the `lambda` for the lasso.
+```{r}
+lasso.tr=glmnet(x[train,],y[train])
+lasso.tr
+```
+
+So now we can make predictions on our left r data. That's indexes x by minus train.
+If we take the dim of this prediction set we can see there are 4786 observations of the validation set 
+and bc we have 70 values of lambda there will be 70 different columns in this prediction matrix
+```{r}
+pred=predict(lasso.tr, x[-train,])
+dim(pred) 
+```
+
+Then we can look at our validation curve by by plotting RMSE as a function of Lambda
+To find the RMSE:
+(1) Compute our sum of squared errors
+(2) Use apply to compute the means in each column of the squared errors
+(3) Take the square root
+```{r}
+rmse=sqrt(apply((y[-train]-pred)^2,2,mean))
+plot(log(lasso.tr$lambda),rmse,type="b", xlab="Log(lambda)")
+```
+
+Next, we can extract the base lambda.
+We do this by indexing lambda in ascending order of rmse and picking out the index of the first (smallest) value.
+```{r}
+lam.best=lasso.tr$lambda[order(rmse)[1]]
+lam.best
+```
+
+Now we can look at the coefficients corresponding to lam.best
+That'll give us a subset of the coefficients (our coefficient vector)
+```{r}
+coef(lasso.tr, s=lam.best)
+```
+
+## Run Subset Selection, Forward, Backward, and Step-wise Selection
+```{r}
+library(leaps)
+
+listings_cleaned= data.frame(clean_listings_price500)
+
+attach(listings_cleaned)
+
+########################
+### Subset selection ###
+########################
+
+regfit.full = regsubsets(price~.,listings_cleaned)
+summary(regfit.full)
+reg.summary=summary(regfit.full)
+which.max(reg.summary$adjr2)
+which.min(reg.summary$bic)
+
+#####################################################
+## Forward, Backward, Stepwise Multiple Regression ##
+#####################################################
+
+listings_cleaned = dummy_cols(listings_cleaned)
+
+logPrice = log(as.numeric(price))
+
+
+airbnbx = listings_cleaned[,-c(3,4,8,9,15,16,19,20,27,32)] #price original columns for which dummy variables now exist
+
+#fix(airbnbx)
+
+n = dim(airbnbx)[1]
+tr = sample(1:n,5000)
+
+XXabb = model.matrix(~.*longitude*latitude, data=data.frame(scale(airbnbx)))[,-1]
+ABBdata = data.frame(logPrice,XXabb)
+
+null = lm(logPrice~1, data=ABBdata[tr,])
+full = glm(logPrice~., data=ABBdata[tr,])
+
+regForward = step(null, scope=formula(full), direction="forward", k=log(length(tr)))
+regBack = step(full, direction="backward", k=log(length(tr)))
+regStep = step(null, scope=formula(full), direction="both", k=log(length(tr)))
+  
+summary(regForward)
+summary(regBack)
+summary(regStep)
+
+predict.fwd = exp(predict(regForward, ABBdata[-tr,]))
+resid.fwd = price[-tr] - predict.fwd
+rmse.fwd = sqrt(mean(resid.fwd^2))
+
+predict.bwd = exp(predict(regBack, ABBdata[-tr,]))
+resid.bwd = price[-tr] - predict.bwd
+rmse.bwd = sqrt(mean(resid.bwd^2))
+
+predict.step = exp(predict(regStep, ABBdata[-tr,]))
+resid.step = price[-tr] - predict.step
+rmse.step = sqrt(mean(resid.step^2))
+
+coef(regStep)                 
+```
+
+
+#####KNN Model####
+```{r}
+library(kknn)
+clean_listings_price500_2 = data.frame(clean_listings_price500)
+```
+
+
+```{r echo = FALSE}
+clean_listings_price500_2 = clean_listings_price500_2[,-c(1,2,5,6,7,8,9,10,14,15,16)]
+kcv = 10
+n=dim(clean_listings_price500_2)[1]
+n0 = round(n/kcv,0)
+
+out_MSE2 = matrix(0,kcv,100)
+
+used = NULL
+set = 1:n
+
+train = clean_listings_price500_2
+test = clean_listings_price500_2
+
+
+```
+
+```{r echo = FALSE, warning=FALSE}
+for(j in 1:kcv){
+  
+  if(n0<length(set)){val = sample(set,n0)}
+  if(n0>=length(set)){val=set}
+  
+  train_i = train[-val,]
+  test_i = test[val,]
+  
+ 
+  
+  
+  for(i in 251:350){ #change these if you want to change range of neighbors -- must be 100 range
+    
+    near = kknn(price~.,train_i,test_i,k=i,kernel = "rectangular")
+    aux = mean((test_i[,2]-near$fitted)^2)
+    out_MSE2[j,i-250] = aux
+  }
+  
+  used = union(used,val)
+  set = (1:n)[-used]
+  
+  cat(j,'\n')
+  
+}
+
+```
+
+```{r echo = FALSE, warning=FALSE}
+mMSE2 = apply(out_MSE2,2,mean)
+
+plot(c(251:350),sqrt(mMSE2))
+which.min(mMSE2)
+min(sqrt(mMSE2))
+
+```
+
+```{r}
+library(nnet)
+clean_listings_price500_3 = data.frame(clean_listings_price500)
+scaled_x = scale(clean_listings_price500_3[,-c(3,4,8,9,15,16)])
+
+library(e1071)
+price = as.numeric(clean_listings_price500_3$price)
+scaled_list = cbind(scaled_x,price)
+df = data.frame(scaled_list)
+```
+
+```{r Neural Net}
+set.seed(1)
+tmodel = tune.nnet(price~., data = df, size = c(3,10,50), decay = c(0.0001, 0.05, 0.1, 0.3, 0.7), linout=T, tunecontrol = tune.control(cross = 10))
+summary(tmodel)
+RMSE <- sqrt(mean(tmodel$best.model$residuals ^2))
+tmodel$best.performance
+tmodel$best.parameters
+tmodel$performances
+tmodel$best.model
+```
+
+
+```{r Neural Net optimization}
+tmodel2 = tune.nnet(price~., data = df, size = c(35, 50, 65), decay = c(0.2, 0.25, 0.3, 0.35, 0.4), linout=T, tunecontrol = tune.control(cross = 10))
+
+RMSE2 <- sqrt(mean(tmodel2$best.model$residuals ^2))
+tmodel2$best.performance
+tmodel2$best.parameters
+tmodel2$performances
+tmodel2$best.model
+```
+
+
+```{r BASE}
+mean(clean_listings_price500$price)
+sd(clean_listings_price500$price)
+```
+
+
+
+Random Forest
+-----------------
+
+#### Adding some more variables to the data
+
+```{r}
+
+listings_short = listings_raw[, c( 'id','name', 'price','minimum_nights','minimum_minimum_nights', 'maximum_minimum_nights', 'minimum_maximum_nights', 'minimum_nights_avg_ntm', 'number_of_reviews', 'number_of_reviews_ltm', 'review_scores_rating', 'review_scores_accuracy', 'review_scores_cleanliness', 'review_scores_checkin', 'review_scores_communication','reviews_per_month', 'review_scores_value', 'latitude', 'longitude','bedrooms','bathrooms','beds','guests_included', 'reviews_per_month','room_type')]
+
+
+
+clean_listings = subset(listings_short, minimum_nights <= 14) #removes 766 entries
+
+library(tidyr)
+#Remove '$' from 'price'
+clean_listings$price = substring(clean_listings$price,2)
+
+x=clean_listings$price
+x = as.numeric(gsub(",","",x))
+clean_listings$price = x
+
+clean_listings = subset(clean_listings, !(is.na(price)))
+
+clean_listings = subset(clean_listings, price > 0)
+
+#REVIEW SCORES RATING
+clean_listings$has_reviews = !(is.na(clean_listings$review_scores_rating))
+#Impute mean review score to missing values
+list_with_review_scores = subset(clean_listings, !(is.na(review_scores_rating)))
+clean_listings$review_scores_rating = clean_listings$review_scores_rating %>% replace_na(mean(list_with_review_scores$review_scores_rating))
+
+#BATHROOMS
+clean_listings = subset(clean_listings, !(is.na(bathrooms)))
+
+#BEDROOMS
+clean_listings = subset(clean_listings, !(is.na(bedrooms)))
+
+#BEDS
+clean_listings = subset(clean_listings, !(is.na(beds)))
+
+#Drop 'id' column
+clean_listings$id <-NULL
+#Drop 'name' column
+clean_listings$name <-NULL
+head(clean_listings)
+
+clean_listings_price500 = subset(clean_listings, price <= 500)
+
+#Remove decimal values (bc we are only keeping values <=500 we can keep 3 sig digits)
+format(clean_listings_price500$price, digits=3)
+
+
+
+```
+
+
+
+
+
+#### Making training and validation dataset (Remove set.seeds() for validation purposes everywhere)
+
+```{r echo = FALSE}
+
+## Dividing the data into training and validation dataset  : 60,20,20
+
+lendata <- nrow(clean_listings_new)
+len60 <- as.integer((lendata*0.6))
+
+## Making the training, validation and test datasets 
+set.seed(1234)
+listings_train_ind <- sample(1:lendata,len60)
+listings_train <- clean_listings_new[listings_train_ind,]
+clean_listings_left1 <- clean_listings_new[-listings_train_ind,]
+listing_validation_ind <- sample(1:nrow(clean_listings_left1),as.integer(nrow(clean_listings_left1)/2))
+listing_validation <- clean_listings_left1[listing_validation_ind,]
+listing_test <- clean_listings_left1[-listing_validation_ind,]
+
+```
+
+
+
+
+#### Getting a plot of ntrees for the random forest 
+
+```{r echo=FALSE}
+
+## Applying Random Forest and checking the errors 
+
+set.seed(1234)
+
+rfv1 <- randomForest(price~., data = listings_train, mtry = ncol(listings_train)-1, ntree = 1000 )
+plot(rfv1)
+
+## Calculating OOS error 
+pred1 <- predict(rfv1, newdata = listing_validation)
+pred1oos <- mean(( pred1 - listing_validation$price)^2)
+pred1oosrmse <- sqrt(pred1oos)
+pred1oosrmse
+
+```
+
+
+
+#### THe error becomes constant from 200 onwards. Trying for different mtrys and ntrees to get a good parameter
+
+
+
+```{r echo=FALSE}
+##trying for different mtry
+plist <-  c(5,10,15,20,24)
+validation_result <- data.frame()
+set.seed(1234)
+
+for (i in 1:length(plist)){
+  
+  rfvf1 <- randomForest(price~., data = listings_train, mtry = plist[i], ntree = 100 )
+  rfvf2 <- randomForest(price~., data = listings_train, mtry = plist[i], ntree = 500 )
+  rfvf3 <- randomForest(price~., data = listings_train, mtry = plist[i], ntree = 800 )
+  pred1 <- predict(rfvf1, newdata = listing_validation)
+  pred1oos <- sqrt(mean(( pred1 - listing_validation$price)^2))
+  pred2 <- predict(rfvf2, newdata = listing_validation)
+  pred2oos <- sqrt(mean(( pred2 - listing_validation$price)^2))
+  pred3 <- predict(rfvf3, newdata = listing_validation)
+  pred3oos <- sqrt(mean(( pred3 - listing_validation$price)^2))
+  
+  
+  validation_result <- rbind(validation_result,c(plist[i],100,pred1oos))
+  validation_result <- rbind(validation_result,c(plist[i],500,pred2oos))
+  validation_result <- rbind(validation_result,c(plist[i],800,pred3oos))
+}
+
+colnames(validation_result) <- c('mtry','ntree','oos')
+validation_result
+
+```
+
+
+
+#### The results show that the model shows close results with ntree = 800 and ntree = 100,500. Predicting using ntree = 500 and mtry = 5
+
+```{r echo = FALSE}
+
+set.seed(1234)
+listings_train_test <- listings_train
+#listings_train$price <- NULL
+rfvi <- randomForest(price~., data = listings_train, mtry = 5, ntree = 500 )
+varImpPlot(rfvi )
+
+```
+
+
+##running model by removing 'has_reviews variable 
+
+```{r echo = FALSE}
+
+set.seed(1234)
+listings_train_imp <- listings_train[,-24]
+rfv1 <- randomForest(price~., data = listings_train, mtry = 5, ntree = 500 )
+pred1 <- predict(rfvf1, newdata = listing_validation)
+pred1oos <- sqrt(mean(( pred1 - listing_validation$price)^2))
+pred1oos
+
+```
+
+
+## Running model with important variables did not give significant results
+## Predicting with all variables on test data and combining validation and train data 
+```{r echo = FALSE}
+
+set.seed(1234)
+listings_train_validation <- rbind(listings_train,listing_validation)
+rfv1 <- randomForest(price~., data = listings_train_validation, mtry = 5, ntree = 500 )
+pred1 <- predict(rfv1, newdata = listing_test)
+pred1oos <- sqrt(mean(( pred1 - listing_test$price)^2))
+pred1oos
+
+```
+
+
+
+
+
+
+Gradient Boosting Method
+-----------------
+
+#### Adding some more variables to the data
+
+```{r}
+
+listings_short = listings_raw[, c( 'id','name', 'price','minimum_nights','minimum_minimum_nights', 'maximum_minimum_nights', 'minimum_maximum_nights', 'minimum_nights_avg_ntm', 'number_of_reviews', 'number_of_reviews_ltm', 'review_scores_rating', 'review_scores_accuracy', 'review_scores_cleanliness', 'review_scores_checkin', 'review_scores_communication','reviews_per_month', 'review_scores_value', 'latitude', 'longitude','bedrooms','bathrooms','beds','guests_included', 'reviews_per_month','room_type')]
+
+
+
+clean_listings = subset(listings_short, minimum_nights <= 14) #removes 766 entries
+
+library(tidyr)
+#Remove '$' from 'price'
+clean_listings$price = substring(clean_listings$price,2)
+
+x=clean_listings$price
+x = as.numeric(gsub(",","",x))
+clean_listings$price = x
+
+clean_listings = subset(clean_listings, !(is.na(price)))
+
+clean_listings = subset(clean_listings, price > 0)
+
+#REVIEW SCORES RATING
+clean_listings$has_reviews = !(is.na(clean_listings$review_scores_rating))
+#Impute mean review score to missing values
+list_with_review_scores = subset(clean_listings, !(is.na(review_scores_rating)))
+clean_listings$review_scores_rating = clean_listings$review_scores_rating %>% replace_na(mean(list_with_review_scores$review_scores_rating))
+
+#BATHROOMS
+clean_listings = subset(clean_listings, !(is.na(bathrooms)))
+
+#BEDROOMS
+clean_listings = subset(clean_listings, !(is.na(bedrooms)))
+
+#BEDS
+clean_listings = subset(clean_listings, !(is.na(beds)))
+
+#Drop 'id' column
+clean_listings$id <-NULL
+#Drop 'name' column
+clean_listings$name <-NULL
+head(clean_listings)
+
+clean_listings_price500 = subset(clean_listings, price <= 500)
+
+#Remove decimal values (bc we are only keeping values <=500 we can keep 3 sig digits)
+format(clean_listings_price500$price, digits=3)
+
+
+
+```
+
+
+## GRID SEARCH for gbm
+```{r echo = FALSE}
+
+#install.packages("gbm")
+library("gbm")
+# Checking for ntrees 
+
+clean_listings_new <- clean_listings_new2
+clean_listings_new <- clean_listings_new[which(clean_listings_new$price < 500),]
+#clean_listings_new <- clean_listings_new[which(clean_listings_new$price > 5),]
+clean_listings_new$cleaning_fee <- NULL
+
+
+## Dividing the data into training and validation dataset  : 60,20,20
+
+lendata <- nrow(clean_listings_new)
+len60 <- as.integer((lendata*0.6))
+
+## Making the training, validation and test datasets 
+set.seed(1234)
+listings_train_ind <- sample(1:lendata,len60)
+listings_train <- clean_listings_new[listings_train_ind,]
+clean_listings_left1 <- clean_listings_new[-listings_train_ind,]
+listing_validation_ind <- sample(1:nrow(clean_listings_left1),as.integer(nrow(clean_listings_left1)/2))
+listing_validation <- clean_listings_left1[listing_validation_ind,]
+listing_test <- clean_listings_left1[-listing_validation_ind,]
+
+
+p = c(500,1000,1500,2000)
+d = c(2,4,6,8,10)
+l = c(0.2,0.1,0.002,0.005,0.001)
+gridsrch <- data.frame()
+
+predboost4oos = list()
+rmsepredboost4oos = list()
+
+for(i in 1:length(p)){
+  for(j in 1:length(d)){
+    for(k in 1:length(l)){
+      boost_train1 <- gbm(price~.,data= listings_train,distribution = "gaussian", n.trees = p[i], interaction.depth = d[i], shrinkage = l[k])
+      pboostred4 <- predict(boost_train1, newdata = listing_validation, n.trees = p[i])
+#predboost4oos[i] <- mean(( pboostred4 - listing_validation$price)^2)
+rmsepredboost4oos[i] <- sqrt(sum((pboostred4 - listing_validation$price)^2)/nrow(listing_validation))
+print("tree size is")
+print(p[i])
+print("depth")
+print(d[j])
+print("shrinkage")
+print(l[k])
+print("root mean square error is")
+print(rmsepredboost4oos[i])
+#print("mean square error is ")
+print("")
+
+gridsrch <- rbind(gridsrch,c(p[i],d[j],l[k],rmsepredboost4oos[i]))
+      
+    }
+  }
+}
+
+
+colnames(gridsrch) <- c('Tree_Size','Depth','Shrinkage','RMSE')
+    
+#plotting oos for different trees 
+
+```
+
+
+
+#### At tree size = 2000, depth = 10 and shrinkage 0.005 has least RMSE, calculating important variables and tree for it
+
+```{r echo = FALSE}
+set.seed(1234)
+
+boost_train1 <- gbm(price~.,data= listings_train,distribution = "gaussian", n.trees = 2000, interaction.depth = 10, shrinkage = 0.005)
+
+
+summary(boost_train1)
+
+```
+
+
+
+#### Combining train and validation and predicting on test
+
+
+```{r echo = FALSE}
+set.seed(1234)
+
+listings_train_validation = rbind(listings_train, listing_validation)
+
+
+boost_train1 <- gbm(price~.,data= listings_train,distribution = "gaussian", n.trees = 2000, interaction.depth = 10, shrinkage = 0.005)
+
+
+pboostred4 <- predict(boost_train1, newdata = listing_test, n.trees = 2000)
+#predboost4oos[i] <- mean(( pboostred4 - listing_validation$price)^2)
+
+
+
+rmsepredboost4oos <- sqrt(sum((pboostred4 - listing_test$price)^2)/nrow(listing_test))
+rmsepredboost4oos
+
+
+
+
+
+
