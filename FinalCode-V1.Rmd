@@ -608,3 +608,42 @@ which.min(mMSE2)
 min(sqrt(mMSE2))
 
 ```
+
+```{r}
+library(nnet)
+clean_listings_price500_3 = data.frame(clean_listings_price500)
+scaled_x = scale(clean_listings_price500_3[,-c(3,4,8,9,15,16)])
+
+library(e1071)
+price = as.numeric(clean_listings_price500_3$price)
+scaled_list = cbind(scaled_x,price)
+df = data.frame(scaled_list)
+```
+
+```{r Neural Net}
+set.seed(1)
+tmodel = tune.nnet(price~., data = df, size = c(3,10,50), decay = c(0.0001, 0.05, 0.1, 0.3, 0.7), linout=T, tunecontrol = tune.control(cross = 10))
+summary(tmodel)
+RMSE <- sqrt(mean(tmodel$best.model$residuals ^2))
+tmodel$best.performance
+tmodel$best.parameters
+tmodel$performances
+tmodel$best.model
+```
+
+
+```{r Neural Net optimization}
+tmodel2 = tune.nnet(price~., data = df, size = c(35, 50, 65), decay = c(0.2, 0.25, 0.3, 0.35, 0.4), linout=T, tunecontrol = tune.control(cross = 10))
+
+RMSE2 <- sqrt(mean(tmodel2$best.model$residuals ^2))
+tmodel2$best.performance
+tmodel2$best.parameters
+tmodel2$performances
+tmodel2$best.model
+```
+
+
+```{r BASE}
+mean(clean_listings_price500$price)
+sd(clean_listings_price500$price)
+```
