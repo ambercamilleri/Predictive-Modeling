@@ -703,7 +703,10 @@ clean_listings_price500 = subset(clean_listings, price <= 500)
 #Remove decimal values (bc we are only keeping values <=500 we can keep 3 sig digits)
 format(clean_listings_price500$price, digits=3)
 
-
+## Making Clean Listing Data
+clean_listings_new <- clean_listings_price500
+clean_listings_new$has_reviews <- as.factor(clean_listings_new$has_reviews)
+clean_listings_new2 <- clean_listings_new
 
 ```
 
@@ -885,7 +888,9 @@ clean_listings_price500 = subset(clean_listings, price <= 500)
 
 #Remove decimal values (bc we are only keeping values <=500 we can keep 3 sig digits)
 format(clean_listings_price500$price, digits=3)
-
+clean_listings_new <- clean_listings_price500
+clean_listings_new$has_reviews <- as.factor(clean_listings_new$has_reviews)
+clean_listings_new2 <- clean_listings_new
 
 
 ```
@@ -981,6 +986,7 @@ summary(boost_train1)
 ```{r echo = FALSE}
 set.seed(1234)
 ntimp = " "
+varimp_gbm <- summary(boost_train1)
 varimp_gbm$var <- as.character(varimp_gbm$var)
 
 listings_train_validation = rbind(listings_train, listing_validation)
