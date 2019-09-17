@@ -1,7 +1,7 @@
 # ##############################################################################
 # Predictive Modeling Project: Predicting AirBnB Prices
-# Meeting Notes: https://docs.google.com/document/d/13sGsI9dkq4WxyQCRV87Vu5aBqmBYANkO341UxVx4Sco/edit
-# 
+# Meeting Notes: https://drive.google.com/file/d/1ZEV8YxGwl6d5pZQ77DXOnlIp6y0Cgoaj/view?usp=sharing
+# Final Presentaion: https://drive.google.com/file/d/1R3Kvo5iB19Ol2y6IXRfI2-0aYwhDz7Zl/view?usp=sharing
 # Please add comments to this file before uploading
 ################################################################################
 
