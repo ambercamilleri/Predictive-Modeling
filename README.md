@@ -1,11 +1,12 @@
 # ##############################################################################
 # Predictive Modeling Project: Predicting AirBnB Prices
-# Meeting Notes: https://drive.google.com/file/d/1ZEV8YxGwl6d5pZQ77DXOnlIp6y0Cgoaj/view?usp=sharing
-# Final Presentaion: https://drive.google.com/file/d/1R3Kvo5iB19Ol2y6IXRfI2-0aYwhDz7Zl/view?usp=sharing
+### Authors: Amber Camilleri, Christopher Kreke, Yuke Liu, Rachel Meade, Jayant Raisinghani
+#
 # Please add comments to this file before uploading
 ################################################################################
 
-Authors: Amber Camilleri, Christopher Kreke, Yuke Liu, Rachel Meade, Jayant Raisinghani
+### Meeting Notes: https://drive.google.com/file/d/1ZEV8YxGwl6d5pZQ77DXOnlIp6y0Cgoaj/view?usp=sharing
+### Final Presentaion: https://drive.google.com/file/d/16qanBS7IXIgpPZNCSQ8VjEhaBff8fh6s/view?usp=sharing
 
 ### #############################################################################
 
